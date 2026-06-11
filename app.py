@@ -1,4 +1,4 @@
-import streamlit as st
+import streamlit as st  # SỬA LỖI: Đã đổi 'tf' thành 'st' chuẩn hóa toàn hệ thống
 import pandas as pd
 import numpy as np
 import plotly.express as px
@@ -68,7 +68,6 @@ with st.sidebar:
     # 3. Cấu hình siêu tham số động theo mô hình chọn
     st.subheader("🎛️ Tham số mô hình AI")
     
-    # Gom tham số cơ bản và nâng cao hợp lý
     random_state = st.number_input(
         "Random State",
         value=42,
@@ -109,17 +108,20 @@ else:
     # Đọc dữ liệu thô qua hàm cache bằng bytes
     file_bytes = uploaded_file.read()
     df = load_data(file_bytes, uploaded_file.name)
-    st.caption(f"📁 **Đang kết nối tệp dữ liệu nguồn:** `{uploaded_file.name}` | Định dạng hợp lệ.")
+    if df is not None:
+        st.caption(f"📁 **Đang kết nối tệp dữ liệu nguồn:** `{uploaded_file.name}` | Định dạng hợp lệ.")
+    else:
+        st.stop()
 
 st.divider()
 
-# XÁC ĐỊNH SCHEMA BIẾN (Tự động trích xuất từ cấu trúc dataset1.csv)
+# XÁC ĐỊNH SCHEMA BIẾN (Tự động trích xuất từ cấu trúc dữ liệu)
 features_list = [c for c in df.columns if c.startswith('X_')]
 target_col = 'default' if 'default' in df.columns else None
 
 # Kiểm tra tính toàn vẹn của dữ liệu đầu vào theo notebook
 if len(features_list) == 0 or target_col is None:
-    st.error(f"Cấu trúc file dữ liệu không khớp với thiết kế cấu trúc cấu hình notebook. File cần có các cột biến đặc trưng từ X_1 đến X_14 và biến mục tiêu '{target_col if target_col else 'default'}'.")
+    st.error(f"Cấu trúc file dữ liệu không khớp với thiết kế cấu hình notebook. File cần có các cột biến đặc trưng từ X_1 đến X_14 và biến mục tiêu '{target_col if target_col else 'default'}'.")
     st.stop()
 
 # ==========================================
@@ -173,18 +175,15 @@ tab1, tab2, tab3, tab4 = st.tabs([
 with tab1:
     st.subheader("📋 Thống kê mô tả & Cấu trúc tập mẫu")
     
-    # 1. Kích thước và dung lượng tệp
     col_m1, col_m2, col_m3 = st.columns(3)
     file_size_mb = len(file_bytes) / (1024 * 1024)
     col_m1.metric("Số dòng (Hàng mẫu)", f"{df.shape[0]:,}")
     col_m2.metric("Số cột thuộc tính", f"{df.shape[1]}")
     col_m3.metric("Dung lượng File", f"{file_size_mb:.2f} MB")
     
-    # 2. Hiển thị dữ liệu thô đầu dòng
     st.write("📂 **Xem nhanh 5 bản ghi dữ liệu mẫu đầu tiên (Head):**")
     st.dataframe(df.head(5), use_container_width=True)
     
-    # 3. Thống kê mô tả (Chỉ mô tả tập biến đưa vào mô hình X và y)
     st.write("📊 **Bảng phân tích thống kê toán học các thuộc tính biến đặc trưng:**")
     selected_cols = features_list + [target_col]
     st.dataframe(df[selected_cols].describe().T, use_container_width=True)
@@ -194,14 +193,12 @@ with tab1:
 # ------------------------------------------
 with tab2:
     st.subheader("📉 Biểu đồ phân tích phân phối thuộc tính")
-    
-    # Gom cụm bố trí lưới 2x2 cho các biến quan trọng nhất
     st.write("Phân tích trực quan hóa phân phối lớp rủi ro mục tiêu và đặc trưng dữ liệu giao dịch:")
     
     col_b1, col_b2 = st.columns(2)
     col_b3, col_b4 = st.columns(2)
     
-    # Biểu đồ 1: Phân phối của biến mục tiêu 'default' (Ưu tiên số 1)
+    # Thêm config={'displayModeBar': False} để ẩn thanh công cụ thừa của Plotly
     with col_b1:
         target_counts = df[target_col].value_counts().reset_index()
         target_counts.columns = ['Trạng thái', 'Số lượng khách hàng']
@@ -209,37 +206,33 @@ with tab2:
         fig1 = px.bar(target_counts, x='Trạng thái', y='Số lượng khách hàng', 
                       title="Phân phối biến mục tiêu (default)",
                       color='Trạng thái', color_discrete_sequence=px.colors.qualitative.Pastel)
-        st.plotly_chart(fig1, use_container_width=True)
+        st.plotly_chart(fig1, use_container_width=True, config={'displayModeBar': False})
         
-    # Biểu đồ 2: Phân phối của biến đặc trưng đầu vào X_1 (Liên tục)
     with col_b2:
         fig2 = px.histogram(df, x='X_1', color=target_col, barmode='overlay',
                             title="Phân phối thuộc tính liên tục X_1 theo nhóm Rủi ro",
                             labels={'X_1': 'Chỉ số đặc trưng X_1'},
                             color_discrete_sequence=px.colors.qualitative.Set1)
-        st.plotly_chart(fig2, use_container_width=True)
+        st.plotly_chart(fig2, use_container_width=True, config={'displayModeBar': False})
         
-    # Biểu đồ 3: Phân phối của biến đặc trưng đầu vào X_5
     with col_b3:
         fig3 = px.box(df, x=target_col, y='X_5', color=target_col,
                       title="Biểu đồ Boxplot phân tích giá trị ngoại lai X_5",
                       labels={'default': 'Nhãn Rủi Ro', 'X_5': 'Giá trị biến X_5'})
-        st.plotly_chart(fig3, use_container_width=True)
+        st.plotly_chart(fig3, use_container_width=True, config={'displayModeBar': False})
         
-    # Biểu đồ 4: Phân phối của biến đặc trưng đầu vào X_13
     with col_b4:
         fig4 = px.histogram(df, x='X_13', title="Biểu đồ tần suất mật độ của thuộc tính X_13",
                             marginal="rug", color_discrete_sequence=['#4A90E2'])
-        st.plotly_chart(fig4, use_container_width=True)
+        st.plotly_chart(fig4, use_container_width=True, config={'displayModeBar': False})
 
-    # Widget mở rộng nếu người dùng muốn chọn xem thêm bất kỳ biến nào khác (>4 biến)
     st.write("---")
     st.markdown("🔍 **Tùy chọn nâng cao: Khảo sát biểu đồ các biến khác**")
     all_features_to_select = st.multiselect("Chọn các biến đặc trưng bạn muốn vẽ biểu đồ mật độ bổ sung:", options=features_list, default=['X_2', 'X_6'])
     if all_features_to_select:
         for idx, var in enumerate(all_features_to_select):
             fig_dynamic = px.histogram(df, x=var, color=target_col, title=f"Tần suất phân phối thuộc tính đặc trưng {var}", barmode='group')
-            st.plotly_chart(fig_dynamic, use_container_width=True)
+            st.plotly_chart(fig_dynamic, use_container_width=True, config={'displayModeBar': False})
 
 # ------------------------------------------
 # THÀNH PHẦN 5: TAB "KẾT QUẢ HUẤN LUYỆN & KIỂM ĐỊNH MÔ HÌNH"
@@ -247,11 +240,9 @@ with tab2:
 with tab3:
     st.subheader("🎯 Đánh giá hiệu năng thuật toán học máy")
     
-    # Kiểm tra điều phối trạng thái, nếu chưa bấm nút Train ở Sidebar thì dừng xử lý lỗi hướng dẫn người dùng
     if 'trained_model' not in st.session_state:
         st.info("⚠️ **Thông báo:** Chưa tìm thấy dữ liệu mô hình huấn luyện. Vui lòng chọn thuật toán và bấm nút **[🚀 Huấn luyện mô hình]** ở thanh Sidebar bên trái để xem kết quả kiểm định chi tiết.")
     else:
-        # Lấy thông tin lưu trữ từ session_state ra hiển thị cấu trúc đồng bộ
         model = st.session_state['trained_model']
         m_name = st.session_state['model_name']
         y_test = st.session_state['y_test']
@@ -259,17 +250,14 @@ with tab3:
         
         st.success(f"📊 Kết quả phân tích đánh giá chất lượng của mô hình: **{m_name}**")
         
-        # 1. Trích xuất Ma trận nhầm lẫn (Confusion Matrix)
         cm = confusion_matrix(y_test, y_pred)
         tn, fp, fn, tp = cm.ravel()
         
-        # 2. Tính toán các chỉ số cốt lõi dựa trên ma trận nhầm lẫn thực tế
         accuracy = (tp + tn) / (tn + fp + fn + tp)
         precision = tp / (tp + fp) if (tp + fp) > 0 else 0
         recall = tp / (tp + fn) if (tp + fn) > 0 else 0
         f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
         
-        # 3. Hiển thị bảng Score Metrics trực quan hóa
         st.write("✨ **Các chỉ số phân loại chính yếu (Classification Metrics):**")
         col_s1, col_s2, col_s3, col_s4 = st.columns(4)
         col_s1.metric("Độ chính xác tổng thể (Accuracy)", f"{accuracy:.2%}")
@@ -278,7 +266,6 @@ with tab3:
         col_s4.metric("F1-Score (Nhãn rủi ro)", f"{f1_score:.2f}")
         
         st.write("---")
-        
         col_c1, col_c2 = st.columns(2)
         
         with col_c1:
@@ -286,7 +273,6 @@ with tab3:
             cm_df = pd.DataFrame(cm, index=['Thực tế An toàn (0)', 'Thực tế Rủi ro (1)'], columns=['Dự đoán An toàn (0)', 'Dự đoán Rủi ro (1)'])
             st.dataframe(cm_df, use_container_width=True)
             
-            # Trực quan hóa ma trận bằng heatmap đồ họa plotly lý tưởng
             fig_cm = go.Figure(data=go.Heatmap(
                 z=cm,
                 x=['Dự đoán An toàn (0)', 'Dự đoán Rủi ro (1)'],
@@ -297,7 +283,7 @@ with tab3:
                 showscale=False
             ))
             fig_cm.update_layout(height=250, margin=dict(l=20, r=20, t=30, b=20))
-            st.plotly_chart(fig_cm, use_container_width=True)
+            st.plotly_chart(fig_cm, use_container_width=True, config={'displayModeBar': False})
             
         with col_c2:
             st.write("📄 **Báo cáo phân loại chi tiết (Classification Report):**")
@@ -305,7 +291,6 @@ with tab3:
             rep_df = pd.DataFrame(rep_dict).transpose()
             st.dataframe(rep_df.style.format(precision=3), use_container_width=True)
             
-        # 4. Tính toán Tầm quan trọng của các biến thuộc tính đối với mô hình dạng cây (Feature Importance)
         if hasattr(model, 'feature_importances_'):
             st.write("---")
             st.write("🌿 **Độ quan trọng đóng góp của các thuộc tính đầu vào (Feature Importances):**")
@@ -318,7 +303,7 @@ with tab3:
             fig_imp = px.bar(feat_imp_df, x='Độ quan trọng (Tỷ trọng)', y='Thuộc tính biến', orientation='h',
                              title="Xếp hạng mức độ tác động của các biến X đến quyết định phân loại rủi ro",
                              color='Độ quan trọng (Tỷ trọng)', color_continuous_scale='Viridis')
-            st.plotly_chart(fig_imp, use_container_width=True)
+            st.plotly_chart(fig_imp, use_container_width=True, config={'displayModeBar': False})
 
 # ------------------------------------------
 # THÀNH PHẦN 6: TAB "SỬ DỤNG MÔ HÌNH"
@@ -326,14 +311,12 @@ with tab3:
 with tab4:
     st.subheader("🔮 Chấm điểm dữ liệu mới & Đưa ra dự báo")
     
-    # Kiểm tra điều phối trạng thái huấn luyện
     if 'trained_model' not in st.session_state:
         st.info("⚠️ **Thông báo:** Vui lòng thực hiện thao tác huấn luyện mô hình ở Sidebar trước khi sử dụng tính năng dự báo rủi ro thực tế.")
     else:
         model = st.session_state['trained_model']
         features_list = st.session_state['features']
         
-        # Chọn chế độ nhập dự báo đầu vào
         mode = st.radio("Chọn chế độ nạp dữ liệu cần dự đoán:", 
                         ["Chế độ 1: Nhập trực tiếp thông số 1 khách hàng", 
                          "Chế độ 2: Tải file danh sách khách hàng hàng loạt"],
@@ -343,14 +326,9 @@ with tab4:
         
         if mode == "Chế độ 1: Nhập trực tiếp thông số 1 khách hàng":
             st.markdown("📝 **Nhập các chỉ số thông tin thuộc tính của hồ sơ giao dịch:**")
-            
-            # Tính toán các giá trị trung vị từ tập dữ liệu huấn luyện để thiết lập làm giá trị mặc định tối ưu trên Form
             source_df = st.session_state['df_source']
             
-            # Sử dụng st.form để bọc các widget tránh hiện tượng re-run ứng dụng liên tục gây gián đoạn khi người dùng thao tác
             with st.form("single_prediction_form"):
-                
-                # Chia cột thông minh giúp giao diện nhập liệu cân đối không bị kéo quá dài
                 col_inputs = st.columns(3)
                 input_data = {}
                 
@@ -358,7 +336,7 @@ with tab4:
                     col_idx = idx % 3
                     min_v = float(source_df[feat].min())
                     max_v = float(source_df[feat].max())
-                    mean_v = float(source_df[feat].median()) # dùng trung vị làm mặc định an toàn theo nguyên tắc thiết kế
+                    mean_v = float(source_df[feat].median())
                     
                     with col_inputs[col_idx]:
                         input_data[feat] = st.number_input(
@@ -373,10 +351,7 @@ with tab4:
                 submit_predict = st.form_submit_button("🔮 Thực hiện chấm điểm dự báo", type="primary", use_container_width=True)
                 
             if submit_predict:
-                # Chuyển dữ liệu sang mảng DataFrame đúng chuẩn schema biến X mẫu lúc train
                 single_df = pd.DataFrame([input_data])
-                
-                # Thực hiện chấm điểm dự đoán nhãn và xác suất rủi ro tương ứng
                 pred_label = model.predict(single_df)[0]
                 
                 st.write("📊 **Kết quả phân tích hồ sơ:**")
@@ -389,9 +364,7 @@ with tab4:
                     prob = model.predict_proba(single_df)[0]
                     st.info(f"📈 **Xác suất phân tích chi tiết từ mô hình AI:** Tỷ lệ An toàn: {prob[0]:.2%} | Tỷ lệ Rủi ro/Gian lận: {prob[1]:.2%}")
 
-        # ------------------------------------------
-        # CHẾ ĐỘ 2: DỰ BÁO HÀNG LOẠT QUA FILE EXCEL/CSV
-        # ------------------------------------------
+        # CHẾ ĐỘ 2: DỰ BÁO HÀNG LOẠT QUA FILE EXCEL/CSV (Đã bọc try-except an toàn)
         else:
             st.markdown("📁 **Tải lên tệp dữ liệu tập khách hàng mới cần quét rủi ro số lượng lớn:**")
             st.caption("Lưu ý: Cấu trúc file tải lên phải chứa đầy đủ các cột thuộc tính đặc trưng từ `X_1` đến `X_14` tương tự file mẫu.")
@@ -399,13 +372,16 @@ with tab4:
             batch_file = st.file_uploader("Tải tệp danh sách cần chấm điểm rủi ro hàng loạt", type=["csv", "xlsx"], key="batch_uploader")
             
             if batch_file is not None:
-                # Đọc tệp dữ liệu mới cần dự đoán
-                if batch_file.name.endswith('.csv'):
-                    batch_df = pd.read_csv(batch_file)
-                else:
-                    batch_df = pd.read_excel(batch_file)
+                # SỬA LỖI/CẢI TIẾN: Thêm xử lý bọc lỗi khi đọc file danh sách lạ
+                try:
+                    if batch_file.name.endswith('.csv'):
+                        batch_df = pd.read_csv(batch_file)
+                    else:
+                        batch_df = pd.read_excel(batch_file)
+                except Exception as err:
+                    st.error(f"❌ Không thể phân tích cấu trúc file này. Vui lòng kiểm tra lại định dạng tệp! Chi tiết lỗi: {err}")
+                    st.stop()
                 
-                # Kiểm tra schema xác thực tính toàn vẹn của dữ liệu đầu vào
                 missing_cols = [col for col in features_list if col not in batch_df.columns]
                 
                 if missing_cols:
@@ -413,13 +389,9 @@ with tab4:
                 else:
                     st.success("✅ Kiểm tra cấu trúc file trùng khớp hoàn toàn. Tiến hành chấm điểm phân loại tự động...")
                     
-                    # Tách trích xuất tập dữ liệu thuộc tính để đưa vào mô hình chấm điểm dự đoán
                     X_batch = batch_df[features_list]
-                    
-                    # Tiến hành dự báo hàng loạt
                     predictions = model.predict(X_batch)
                     
-                    # Đính kèm cột kết quả dự đoán mới vào bảng hiển thị
                     result_df = batch_df.copy()
                     result_df['DỰ_BÁO_MÔ_HÌNH'] = predictions
                     result_df['KẾT_LUẬN_HỆ_THỐNG'] = result_df['DỰ_BÁO_MÔ_HÌNH'].map({0: 'An toàn', 1: 'Cảnh báo Nguy cơ Rủi ro'})
@@ -428,7 +400,6 @@ with tab4:
                         probabilities = model.predict_proba(X_batch)
                         result_df['XÁC_SUẤT_RỦI_RO_GAI_LẬN'] = probabilities[:, 1]
                     
-                    # Thống kê nhanh kết quả quét rủi ro hàng loạt
                     total_records = result_df.shape[0]
                     risk_records = np.sum(predictions == 1)
                     risk_ratio = risk_records / total_records
@@ -438,11 +409,9 @@ with tab4:
                     col_b_m2.metric("Số hồ sơ phát hiện nguy cơ", f"{risk_records:,} hồ sơ", delta=f"{risk_records} ca phát hiện", delta_color="inverse")
                     col_b_m3.metric("Tỷ lệ rủi ro phát hiện", f"{risk_ratio:.2%}")
                     
-                    # Hiển thị bảng kết quả trong một khung container gọn gàng cuộn mượt mà
                     st.write("📊 **Bảng chi tiết kết quả phân loại từ hệ thống AI (Xem nhanh):**")
                     st.dataframe(result_df, use_container_width=True)
                     
-                    # Kết xuất tải xuống kết quả phân tích định dạng CSV (Sử dụng utf-8-sig để tránh lỗi font tiếng Việt khi mở Excel)
                     csv_buffer = io.StringIO()
                     result_df.to_csv(csv_buffer, index=False, encoding='utf-8-sig')
                     csv_bytes = csv_buffer.getvalue().encode('utf-8-sig')
